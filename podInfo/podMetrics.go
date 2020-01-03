@@ -1,26 +1,36 @@
 package podInfo
 
 import (
-	"fmt"
-	"io"
+	"bufio"
+	"github.com/prometheus/common/log"
+	"node-exporter/utils"
 	"os/exec"
+	"syscall"
 )
 
-func monitor(pids []string) (int, io.ReadCloser) {
-	if pids != nil {
-		fmt.Println("Pid is nil in monitor!")
-		return -1, nil
+func Monitor(pids []string) (*exec.Cmd, *bufio.Reader) {
+	if pids == nil {
+		log.Errorln("Pid is nil in monitor!")
+		return nil, nil
 	}
 	paraPid := "all:"
 	for _, pid := range pids {
 		paraPid += pid + ","
 	}
 	cmd := exec.Command("pqos", "-I", "-p", paraPid)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Println("cmd StdoutPipe error:", err)
-		return -1, nil
+		log.Errorln("cmd StdoutPipe error:", err)
+		return nil, nil
 	}
-	go cmd.Start()
-	return cmd.Process.Pid, stdout
+	cmd.Start()
+	reader := bufio.NewReader(stdout)
+	utils.SkipHead(2, reader)
+	return cmd, reader
+}
+
+func StopMonitor(cmd *exec.Cmd) {
+	syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 }

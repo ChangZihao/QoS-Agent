@@ -29,15 +29,25 @@ func GetAllPod() []string {
 	}
 }
 
-func GerAllContainer(dir string) []string {
+func GetPod(name string) (string, bool) {
+	pods := GetAllPod()
+	for _, pod := range pods {
+		if strings.Contains(pod, name) {
+			return pod, true
+		}
+	}
+	return "", false
+}
+
+func GetAllContainer(podPath string) []string {
 	var dockers []string
-	fileInfos, err := ioutil.ReadDir(rootDir)
+	fileInfos, err := ioutil.ReadDir(podPath)
 	if err != nil {
-		log.Errorf("Read pod root dir failed!")
+		log.Errorf("Read pod root podPath failed!")
 	}
 	for _, file := range fileInfos {
 		if file.IsDir() && strings.Contains(file.Name(), "docker-") {
-			filepath := dir + "/" + file.Name()
+			filepath := podPath + "/" + file.Name()
 			dockers = append(dockers, filepath)
 		}
 	}
@@ -48,20 +58,20 @@ func GerAllContainer(dir string) []string {
 	}
 }
 
-func GetPodPids(podpath string) []string {
+func GetPodPids(podPath string) []string {
 	var pids []string
-	fileInfos, err := ioutil.ReadDir(rootDir)
+	fileInfos, err := ioutil.ReadDir(podPath)
 	if err != nil {
 		log.Errorf("Read pod root dir failed!")
 	}
 	for _, file := range fileInfos {
 		if file.IsDir() && strings.Contains(file.Name(), "docker-") {
-			dockerPath := podpath + "/" + file.Name()
+			dockerPath := podPath + "/" + file.Name()
 			data, err := ioutil.ReadFile(dockerPath + "/cgroup.procs")
 			if err != nil {
 				log.Errorf("Get docker %s pid failed!", dockerPath)
 			}
-			pids = append(pids, string(data))
+			pids = append(pids, strings.TrimSpace(string(data)))
 		}
 	}
 	if len(pids) > 0 {
