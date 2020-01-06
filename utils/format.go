@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"github.com/prometheus/common/log"
 	"strings"
 )
 
@@ -9,7 +8,6 @@ func GetpqosFormat(lines []string) []float64 {
 	data := make([]float64, 5)
 	for _, line := range lines {
 		if line == "" {
-			log.Error("Format get empty response!")
 			return nil
 		} else {
 			nums := strings.Fields(line)[2:]

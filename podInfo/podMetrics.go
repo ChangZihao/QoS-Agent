@@ -2,9 +2,12 @@ package podInfo
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/prometheus/common/log"
+	"node-exporter/collector"
 	"node-exporter/utils"
 	"os/exec"
+	"sync"
 	"syscall"
 )
 
@@ -29,6 +32,31 @@ func Monitor(pids []string) (*exec.Cmd, *bufio.Reader) {
 	reader := bufio.NewReader(stdout)
 	utils.SkipHead(2, reader)
 	return cmd, reader
+}
+
+func StarqposMonitor(pod string, m *sync.Map) *exec.Cmd {
+	if podPath, isFind := GetPod(pod); isFind {
+		pids := GetPodPids(podPath)
+		fmt.Println(pids)
+		cmd, stdout := Monitor(pids)
+		go func() {
+			for {
+				content := utils.ReadLines(len(pids)+2, 2, stdout)
+				data := utils.GetpqosFormat(content)
+				if data != nil {
+					m.Store(pod, data)
+				} else {
+					collector.PQOSMetrics.Delete(pod)
+					break
+				}
+			}
+
+			log.Infof("Stop Monitor %s", pod)
+		}()
+		return cmd
+	} else {
+		return nil
+	}
 }
 
 func StopMonitor(cmd *exec.Cmd) {
