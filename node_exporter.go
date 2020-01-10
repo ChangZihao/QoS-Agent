@@ -10,6 +10,7 @@ import (
 	"node-exporter/collector"
 	"node-exporter/podInfo"
 	"os/exec"
+	"strings"
 	"sync"
 )
 
@@ -39,29 +40,39 @@ func main() {
 	http.HandleFunc("/monitor/start", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		pod := r.Form.Get("pod")
-		if _, ok := monitorCMD.Load(pod); !ok {
-			cmd := podInfo.StarqposMonitor(pod, &collector.PQOSMetrics)
-			monitorCMD.Store(pod, cmd)
-			fmt.Fprintf(w, "Start monitor %s\n", pod)
-			log.Infof("Start monitor %s\n", pod)
+		pod = "pod" + strings.ReplaceAll(pod, "-", "_")
+		if pod != "" {
+			if _, ok := monitorCMD.Load(pod); !ok {
+				cmd := podInfo.StarqposMonitor(pod, &collector.PQOSMetrics)
+				monitorCMD.Store(pod, cmd)
+				fmt.Fprintf(w, "Start monitor %s\n", pod)
+				log.Infof("Start monitor %s\n", pod)
+			} else {
+				fmt.Fprintf(w, "Monitor for %s already existed!\n", pod)
+				log.Infof("Monitor for %s already existed!\n", pod)
+			}
 		} else {
-			fmt.Fprintf(w, "Monitor for %s already existed!\n", pod)
-			log.Infof("Monitor for %s already existed!\n", pod)
+			log.Errorln("pod name is nil")
 		}
 	})
 
 	http.HandleFunc("/monitor/stop", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		pod := r.Form.Get("pod")
-		cmd, ok := monitorCMD.Load(pod)
-		if ok {
-			podInfo.StopMonitor(cmd.(*exec.Cmd))
-			monitorCMD.Delete(pod)
-			fmt.Fprintf(w, "Stop monitor %s\n", pod)
+		pod = "pod" + strings.ReplaceAll(pod, "-", "_")
+		if pod != "" {
+			cmd, ok := monitorCMD.Load(pod)
+			if ok {
+				podInfo.StopMonitor(cmd.(*exec.Cmd))
+				monitorCMD.Delete(pod)
+				fmt.Fprintf(w, "Stop monitor %s\n", pod)
+			} else {
+				fmt.Fprintf(w, "Fail to find %s\n", pod)
+			}
+			collector.PQOSMetrics.Delete(pod)
 		} else {
-			fmt.Fprintf(w, "Fail to find %s\n", pod)
+			log.Errorln("pod name is nil")
 		}
-		collector.PQOSMetrics.Delete(pod)
 	})
 
 	log.Infof("Starting Server at http://localhost:%s%s", *listenAddr, *metricsPath)
