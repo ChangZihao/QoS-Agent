@@ -11,7 +11,6 @@ import (
 	"node-exporter/podInfo"
 	"os/exec"
 	"strings"
-	"sync"
 )
 
 var (
@@ -23,8 +22,6 @@ var (
 	listenAddr       = flag.String("web.listen-port", "9001", "An port to listen on for web interface and telemetry.")
 	metricsPath      = flag.String("web.telemetry-path", "/metrics", "A path under which to expose metrics.")
 	metricsNamespace = flag.String("metric.namespace", "pqos", "Prometheus metrics namespace, as the prefix of metrics name")
-
-	monitorCMD = sync.Map{}
 )
 
 func main() {
@@ -42,9 +39,9 @@ func main() {
 		pod := r.Form.Get("pod")
 		pod = "pod" + strings.ReplaceAll(pod, "-", "_")
 		if pod != "" {
-			if _, ok := monitorCMD.Load(pod); !ok {
+			if _, ok := collector.MonitorCMD.Load(pod); !ok {
 				cmd := podInfo.StarqposMonitor(pod, &collector.PQOSMetrics)
-				monitorCMD.Store(pod, cmd)
+				collector.MonitorCMD.Store(pod, cmd)
 				fmt.Fprintf(w, "Start monitor %s\n", pod)
 				log.Infof("Start monitor %s\n", pod)
 			} else {
@@ -61,10 +58,10 @@ func main() {
 		pod := r.Form.Get("pod")
 		pod = "pod" + strings.ReplaceAll(pod, "-", "_")
 		if pod != "" {
-			cmd, ok := monitorCMD.Load(pod)
+			cmd, ok := collector.MonitorCMD.Load(pod)
 			if ok {
 				podInfo.StopMonitor(cmd.(*exec.Cmd))
-				monitorCMD.Delete(pod)
+				collector.MonitorCMD.Delete(pod)
 				fmt.Fprintf(w, "Stop monitor %s\n", pod)
 			} else {
 				fmt.Fprintf(w, "Fail to find %s\n", pod)

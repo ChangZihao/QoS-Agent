@@ -7,6 +7,7 @@ import (
 
 var (
 	PQOSMetrics = sync.Map{}
+	MonitorCMD  = sync.Map{}
 	metricsList = []string{"ipcMetric", "missedMetric", "llcMetric", "mblMetric", "mbrMetric"}
 )
 

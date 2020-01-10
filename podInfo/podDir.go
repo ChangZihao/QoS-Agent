@@ -71,7 +71,11 @@ func GetPodPids(podPath string) []string {
 			if err != nil {
 				log.Errorf("Get docker %s pid failed!", dockerPath)
 			}
-			pids = append(pids, strings.TrimSpace(string(data)))
+			for _, line := range strings.Split(string(data), "\n") {
+				if len(line) > 0 {
+					pids = append(pids, strings.TrimSpace(line))
+				}
+			}
 		}
 	}
 	if len(pids) > 0 {
