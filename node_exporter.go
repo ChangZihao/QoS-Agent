@@ -37,16 +37,18 @@ func main() {
 	http.HandleFunc("/monitor/start", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		pod := r.Form.Get("pod")
+		app := r.Form.Get("app")
 		pod = "pod" + strings.ReplaceAll(pod, "-", "_")
 		if pod != "" {
 			if _, ok := collector.MonitorCMD.Load(pod); !ok {
 				cmd := podInfo.StarqposMonitor(pod, &collector.PQOSMetrics)
 				collector.MonitorCMD.Store(pod, cmd)
+				collector.Pod2app.Store(pod, app)
 				fmt.Fprintf(w, "Start monitor %s\n", pod)
-				log.Infof("Start monitor %s\n", pod)
+				log.Infof("Start monitor app %s, pod  %s\n", app, pod)
 			} else {
 				fmt.Fprintf(w, "Monitor for %s already existed!\n", pod)
-				log.Infof("Monitor for %s already existed!\n", pod)
+				log.Infof("Monitor for app %s, %s already existed!\n", app, pod)
 			}
 		} else {
 			log.Errorln("pod name is nil")
@@ -62,6 +64,7 @@ func main() {
 			if ok {
 				podInfo.StopMonitor(cmd.(*exec.Cmd))
 				collector.MonitorCMD.Delete(pod)
+				collector.Pod2app.Delete(pod)
 				fmt.Fprintf(w, "Stop monitor %s\n", pod)
 			} else {
 				fmt.Fprintf(w, "Fail to find %s\n", pod)
