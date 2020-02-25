@@ -48,6 +48,7 @@ func StarqposMonitor(pod string, m *sync.Map) *exec.Cmd {
 					log.Infof("%s monitor get nil response, exit!", pod)
 					collector.PQOSMetrics.Delete(pod)
 					collector.MonitorCMD.Delete(pod)
+					collector.Pod2app.Delete(pod)
 					break
 				}
 			}
