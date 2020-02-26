@@ -88,7 +88,7 @@ func GetPodPids(podPath string) []string {
 }
 
 func GetPodCPUPath(pod string) string {
-	path := fmt.Sprintf("%s/kubepods-burstable-%s", rootDir, pod)
+	path := fmt.Sprintf("%s/kubepods-burstable-%s.slice", rootDir, pod)
 	return path
 }
 
@@ -96,10 +96,11 @@ func GetPodCPUShare(pod string) float64 {
 	podPath := GetPodCPUPath(pod)
 	data, err := ioutil.ReadFile(podPath + "/cpu.shares")
 	if err != nil {
-		log.Errorf("Get pod  %s CPUShare failed!", pod)
+		log.Errorf("Get pod  %s CPUShare failed! err:%s", pod, err)
 	}
-	if share, err := strconv.ParseFloat(string(data), 64); err != nil {
-		log.Errorf("CPUShare %s to float64 failed!", string(data))
+	sData := strings.TrimSpace(string(data))
+	if share, err := strconv.ParseFloat(sData, 64); err != nil {
+		log.Errorf("CPUShare %s to float64 failed! err:%s", string(data), err)
 		return 0
 	} else {
 		return share
@@ -107,9 +108,9 @@ func GetPodCPUShare(pod string) float64 {
 }
 
 func SetPodCPUShare(pod string, value string) bool {
-	podPath := GetPodCPUPath(pod)
-	if err := ioutil.WriteFile(podPath, []byte(value), 0644); err != nil {
-		log.Errorf("Set %s CPUShare %s failed!", pod, value)
+	shareFilePath := GetPodCPUPath(pod) + "/cpu.shares"
+	if err := ioutil.WriteFile(shareFilePath, []byte(value), 0644); err != nil {
+		log.Errorf("Set %s CPUShare %s failed! err:%s", pod, value, err)
 		return false
 	}
 	return true

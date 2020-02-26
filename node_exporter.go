@@ -87,7 +87,12 @@ func main() {
 
 		switch resourceType {
 		case "CPU":
-			podInfo.SetPodCPUShare(pod, value)
+			res := podInfo.SetPodCPUShare(pod, value)
+			if res == true {
+				w.Write([]byte("succeed"))
+			} else {
+				w.Write([]byte("failed"))
+			}
 		case "MEM":
 			w.Write([]byte("MEM"))
 		case "LLC":

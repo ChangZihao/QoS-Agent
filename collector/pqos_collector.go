@@ -61,7 +61,7 @@ func (collector *pqosCollector) Collect(ch chan<- prometheus.Metric) {
 		for i, name := range pqosMetricsList {
 			ch <- prometheus.MustNewConstMetric(collector.metrics[name], prometheus.GaugeValue, data[i], label, app.(string))
 		}
-		ch <- prometheus.MustNewConstMetric(collector.metrics["CPUShare"], prometheus.GaugeValue, podInfo.GetPodCPUShare(label), app.(string))
+		ch <- prometheus.MustNewConstMetric(collector.metrics["CPUShare"], prometheus.GaugeValue, podInfo.GetPodCPUShare(label), label, app.(string))
 		return true
 	}
 	//Write latest value for each metric in the prometheus metric channel.
