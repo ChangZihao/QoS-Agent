@@ -2,14 +2,15 @@ package collector
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"node-exporter/podInfo"
 	"sync"
 )
 
 var (
-	PQOSMetrics = sync.Map{}
-	MonitorCMD  = sync.Map{}
-	Pod2app     = sync.Map{}
-	metricsList = []string{"ipcMetric", "missedMetric", "llcMetric", "mblMetric", "mbrMetric"}
+	PQOSMetrics     = sync.Map{}
+	MonitorCMD      = sync.Map{}
+	Pod2app         = sync.Map{}
+	pqosMetricsList = []string{"ipcMetric", "missedMetric", "llcMetric", "mblMetric", "mbrMetric"}
 )
 
 //Define a struct for you collector that contains pointers
@@ -26,11 +27,14 @@ type pqosCollector struct {
 func NewpqosCollector() *pqosCollector {
 	return &pqosCollector{
 		metrics: map[string]*prometheus.Desc{
+			// values get from pqos
 			"ipcMetric":    prometheus.NewDesc("ipc_metric", "Show ipc measured by pqos", []string{"group", "app"}, nil),
 			"missedMetric": prometheus.NewDesc("misses_metric", "Show llc misses measured by pqos", []string{"group", "app"}, nil),
 			"llcMetric":    prometheus.NewDesc("llc_metric", "Show LLC occupancy measured by pqos", []string{"group", "app"}, nil),
 			"mblMetric":    prometheus.NewDesc("mbl_metric", "Show local memory bandwidth measured by pqos", []string{"group", "app"}, nil),
 			"mbrMetric":    prometheus.NewDesc("mbr_metric", "Show remote memory bandwidth measured by pqos", []string{"group", "app"}, nil),
+			// pod cpu share
+			"CPUShare": prometheus.NewDesc("cpu_share", "Show cpu share value of pod", []string{"group", "app"}, nil),
 		},
 	}
 }
@@ -54,9 +58,10 @@ func (collector *pqosCollector) Collect(ch chan<- prometheus.Metric) {
 		label := k.(string)
 		data := v.([]float64)
 		app, _ := Pod2app.Load(label)
-		for i, name := range metricsList {
+		for i, name := range pqosMetricsList {
 			ch <- prometheus.MustNewConstMetric(collector.metrics[name], prometheus.GaugeValue, data[i], label, app.(string))
 		}
+		ch <- prometheus.MustNewConstMetric(collector.metrics["CPUShare"], prometheus.GaugeValue, podInfo.GetPodCPUShare(label), app.(string))
 		return true
 	}
 	//Write latest value for each metric in the prometheus metric channel.

@@ -1,8 +1,10 @@
 package podInfo
 
 import (
+	"fmt"
 	"github.com/prometheus/common/log"
 	"io/ioutil"
+	"strconv"
 	"strings"
 )
 
@@ -83,4 +85,32 @@ func GetPodPids(podPath string) []string {
 	} else {
 		return nil
 	}
+}
+
+func GetPodCPUPath(pod string) string {
+	path := fmt.Sprintf("%s/kubepods-burstable-%s", rootDir, pod)
+	return path
+}
+
+func GetPodCPUShare(pod string) float64 {
+	podPath := GetPodCPUPath(pod)
+	data, err := ioutil.ReadFile(podPath + "/cpu.shares")
+	if err != nil {
+		log.Errorf("Get pod  %s CPUShare failed!", pod)
+	}
+	if share, err := strconv.ParseFloat(string(data), 64); err != nil {
+		log.Errorf("CPUShare %s to float64 failed!", string(data))
+		return 0
+	} else {
+		return share
+	}
+}
+
+func SetPodCPUShare(pod string, value string) bool {
+	podPath := GetPodCPUPath(pod)
+	if err := ioutil.WriteFile(podPath, []byte(value), 0644); err != nil {
+		log.Errorf("Set %s CPUShare %s failed!", pod, value)
+		return false
+	}
+	return true
 }

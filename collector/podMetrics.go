@@ -1,9 +1,9 @@
-package podInfo
+package collector
 
 import (
 	"bufio"
 	"github.com/prometheus/common/log"
-	"node-exporter/collector"
+	"node-exporter/podInfo"
 	"node-exporter/utils"
 	"os/exec"
 	"sync"
@@ -33,9 +33,9 @@ func Monitor(pids []string) (*exec.Cmd, *bufio.Reader) {
 	return cmd, reader
 }
 
-func StarqposMonitor(pod string, m *sync.Map) *exec.Cmd {
-	if podPath, isFind := GetPod(pod); isFind {
-		pids := GetPodPids(podPath)
+func StarqposMonitor(pod string, pidMap *sync.Map) (*exec.Cmd, []string) {
+	if podPath, isFind := podInfo.GetPod(pod); isFind {
+		pids := podInfo.GetPodPids(podPath)
 		log.Infof("pids in pod %s: %v", pod, pids)
 		cmd, stdout := Monitor(pids)
 		go func() {
@@ -43,21 +43,21 @@ func StarqposMonitor(pod string, m *sync.Map) *exec.Cmd {
 				content := utils.ReadLines(len(pids)+2, 2, stdout)
 				data := utils.GetpqosFormat(content)
 				if data != nil {
-					m.Store(pod, data)
+					PQOSMetrics.Store(pod, data)
 				} else {
 					log.Infof("%s monitor get nil response, exit!", pod)
-					collector.PQOSMetrics.Delete(pod)
-					collector.MonitorCMD.Delete(pod)
-					collector.Pod2app.Delete(pod)
+					PQOSMetrics.Delete(pod)
+					MonitorCMD.Delete(pod)
+					Pod2app.Delete(pod)
+					pidMap.Delete(pod)
 					break
 				}
 			}
-
 			log.Infof("Stop Monitor %s", pod)
 		}()
-		return cmd
+		return cmd, pids
 	} else {
-		return nil
+		return nil, nil
 	}
 }
 
