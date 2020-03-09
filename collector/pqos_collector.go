@@ -29,7 +29,7 @@ func NewpqosCollector() *pqosCollector {
 		metrics: map[string]*prometheus.Desc{
 			// values get from pqos
 			"ipcMetric":    prometheus.NewDesc("ipc_metric", "Show ipc measured by pqos", []string{"pod", "app"}, nil),
-			"missedMetric": prometheus.NewDesc("misses_metric", "Show llc misses measured by pqos", []string{"pod", "app"}, nil),gir
+			"missedMetric": prometheus.NewDesc("misses_metric", "Show llc misses measured by pqos", []string{"pod", "app"}, nil),
 			"llcMetric":    prometheus.NewDesc("llc_metric", "Show LLC occupancy measured by pqos", []string{"pod", "app"}, nil),
 			"mblMetric":    prometheus.NewDesc("mbl_metric", "Show local memory bandwidth measured by pqos", []string{"pod", "app"}, nil),
 			"mbrMetric":    prometheus.NewDesc("mbr_metric", "Show remote memory bandwidth measured by pqos", []string{"pod", "app"}, nil),
