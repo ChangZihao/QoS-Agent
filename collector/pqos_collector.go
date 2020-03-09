@@ -28,13 +28,13 @@ func NewpqosCollector() *pqosCollector {
 	return &pqosCollector{
 		metrics: map[string]*prometheus.Desc{
 			// values get from pqos
-			"ipcMetric":    prometheus.NewDesc("ipc_metric", "Show ipc measured by pqos", []string{"group", "app"}, nil),
-			"missedMetric": prometheus.NewDesc("misses_metric", "Show llc misses measured by pqos", []string{"group", "app"}, nil),
-			"llcMetric":    prometheus.NewDesc("llc_metric", "Show LLC occupancy measured by pqos", []string{"group", "app"}, nil),
-			"mblMetric":    prometheus.NewDesc("mbl_metric", "Show local memory bandwidth measured by pqos", []string{"group", "app"}, nil),
-			"mbrMetric":    prometheus.NewDesc("mbr_metric", "Show remote memory bandwidth measured by pqos", []string{"group", "app"}, nil),
+			"ipcMetric":    prometheus.NewDesc("ipc_metric", "Show ipc measured by pqos", []string{"pod", "app"}, nil),
+			"missedMetric": prometheus.NewDesc("misses_metric", "Show llc misses measured by pqos", []string{"pod", "app"}, nil),gir
+			"llcMetric":    prometheus.NewDesc("llc_metric", "Show LLC occupancy measured by pqos", []string{"pod", "app"}, nil),
+			"mblMetric":    prometheus.NewDesc("mbl_metric", "Show local memory bandwidth measured by pqos", []string{"pod", "app"}, nil),
+			"mbrMetric":    prometheus.NewDesc("mbr_metric", "Show remote memory bandwidth measured by pqos", []string{"pod", "app"}, nil),
 			// pod cpu share
-			"CPUShare": prometheus.NewDesc("cpu_share", "Show cpu share value of pod", []string{"group", "app"}, nil),
+			"CPUShare": prometheus.NewDesc("cpu_share", "Show cpu share value of pod", []string{"pod", "app"}, nil),
 		},
 	}
 }
