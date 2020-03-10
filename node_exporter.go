@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"node-exporter/collector"
 	"node-exporter/podInfo"
+	"node-exporter/utils"
 	"os/exec"
 	"strings"
 	"sync"
@@ -23,6 +24,7 @@ var (
 	listenAddr       = flag.String("web.listen-port", "9001", "An port to listen on for web interface and telemetry.")
 	metricsPath      = flag.String("web.telemetry-path", "/metrics", "A path under which to expose metrics.")
 	metricsNamespace = flag.String("metric.namespace", "pqos", "Prometheus metrics namespace, as the prefix of metrics name")
+	masterAddress    = flag.String("master-address", "172.18.13.224:9002", "Qos Master address(ip:port)")
 	podPids          = sync.Map{}
 )
 
@@ -49,6 +51,16 @@ func main() {
 				podPids.Store(pod, pids)
 				fmt.Fprintf(w, "Start monitor %s\n", pod)
 				log.Infof("Start monitor app %s, pod  %s\n", app, pod)
+
+				paras := map[string]string{
+					"pod": pod,
+					"app": app,
+					//TODO get host ip auto
+					"node": "172.18.13.223",
+				}
+				url := fmt.Sprintf("http://%s/register", *masterAddress)
+				utils.HTTPGet(url, paras)
+
 			} else {
 				fmt.Fprintf(w, "Monitor for %s already existed!\n", pod)
 				log.Infof("Monitor for app %s, %s already existed!\n", app, pod)
@@ -86,7 +98,7 @@ func main() {
 		value := r.Form.Get("value")
 
 		switch resourceType {
-		case "CPU":
+		case "cpu_share":
 			res := podInfo.SetPodCPUShare(pod, value)
 			if res == true {
 				w.Write([]byte("succeed"))
