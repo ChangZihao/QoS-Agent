@@ -49,6 +49,7 @@ func main() {
 				collector.MonitorCMD.Store(pod, cmd)
 				collector.Pod2app.Store(pod, app)
 				podPids.Store(pod, pids)
+				collector.LLCAllocCount.Store(pod, 0)
 				fmt.Fprintf(w, "Start monitor %s\n", pod)
 				log.Infof("Start monitor app %s, pod  %s\n", app, pod)
 
@@ -107,7 +108,8 @@ func main() {
 			}
 		case "MEM":
 			w.Write([]byte("MEM"))
-		case "LLC":
+		case "llc":
+
 			w.Write([]byte("LLC"))
 
 		}

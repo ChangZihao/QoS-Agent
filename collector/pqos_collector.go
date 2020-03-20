@@ -11,6 +11,7 @@ var (
 	MonitorCMD      = sync.Map{}
 	Pod2app         = sync.Map{}
 	pqosMetricsList = []string{"ipcMetric", "missedMetric", "llcMetric", "mblMetric", "mbrMetric"}
+	LLCAllocCount   = sync.Map{}
 )
 
 //Define a struct for you collector that contains pointers
@@ -35,6 +36,7 @@ func NewpqosCollector() *pqosCollector {
 			"mbrMetric":    prometheus.NewDesc("mbr_metric", "Show remote memory bandwidth measured by pqos", []string{"pod", "app"}, nil),
 			// pod cpu share
 			"CPUShare": prometheus.NewDesc("cpu_share", "Show cpu share value of pod", []string{"pod", "app"}, nil),
+			"llcCapacity": prometheus.NewDesc("llc_capacity", "Show llc capacity  of pod", []string{"pod", "app"}, nil),
 		},
 	}
 }
@@ -58,10 +60,14 @@ func (collector *pqosCollector) Collect(ch chan<- prometheus.Metric) {
 		label := k.(string)
 		data := v.([]float64)
 		app, _ := Pod2app.Load(label)
+		llcCount, _ := LLCAllocCount.Load(label)
 		for i, name := range pqosMetricsList {
 			ch <- prometheus.MustNewConstMetric(collector.metrics[name], prometheus.GaugeValue, data[i], label, app.(string))
 		}
+		// cpu share value
 		ch <- prometheus.MustNewConstMetric(collector.metrics["CPUShare"], prometheus.GaugeValue, podInfo.GetPodCPUShare(label), label, app.(string))
+		// llc alloc value
+		ch <- prometheus.MustNewConstMetric(collector.metrics["llcCapacity"], prometheus.GaugeValue, float64(llcCount.(int)), label, app.(string))
 		return true
 	}
 	//Write latest value for each metric in the prometheus metric channel.
