@@ -16,7 +16,7 @@ func StringToFloat64(s string) float64 {
 
 func StrList2lines(strlist []string) string {
 	if len(strlist) > 0 {
-		return strings.Join(strlist, "\n")
+		return strings.Join(strlist, "\\n")
 	} else {
 		return ""
 	}

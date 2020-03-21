@@ -74,10 +74,11 @@ func (llc *LLCManager) AllocCos(pod string) bool {
 				//TODO Check add pids to cgroup
 				pid, _ := podPids.Load(pod)
 				pidStr := utils.StrList2lines(pid.([]string))
-				cosTasks := fmt.Sprintf("%s/COS%d/tasks", resctrlPath, index)
-				err := exec.Command("echo", "-e", pidStr, ">", cosTasks).Run()
-				if err != nil {
-					log.Errorf("Write pid(%s) to %s failed! err: %s", pidStr, cosTasks, err)
+				cosCMD := fmt.Sprintf("echo -e \"%s\" > %s/COS%d/tasks", pidStr, resctrlPath, index)
+				cmd := exec.Command("/bin/bash", "-c", cosCMD)
+				out, err := cmd.CombinedOutput()
+				if err != nil || len(out) > 0 {
+					log.Errorf("Do %s failed! err: %s, out: %s", cosCMD, err, out)
 				}
 				llc.CosMap += 1 << uint(index)
 				return true
@@ -95,10 +96,11 @@ func (llc *LLCManager) ReleaseCos(pod string) bool {
 	//Todo  write pid to cos0pod
 	pid, _ := podPids.Load(pod)
 	pidStr := utils.StrList2lines(pid.([]string))
-	cosTasks := fmt.Sprintf("%s/tasks", resctrlPath)
-	err := exec.Command("echo", "-e", pidStr, ">", cosTasks).Run()
-	if err != nil {
-		log.Errorf("Write pid(%s) to %s failed! err: %s", pidStr, cosTasks, err)
+	cosCMD := fmt.Sprintf("echo -e \"%s\" > %s/tasks", pidStr, resctrlPath)
+	cmd := exec.Command("/bin/bash", "-c", cosCMD)
+	out, err := cmd.CombinedOutput()
+	if err != nil || len(out) > 0 {
+		log.Errorf("Do %s failed! err: %s, our:%s", cosCMD, err, out)
 	}
 	delete(llc.AllocInfo, pod)
 	log.Infof("Release cos for %s success", pod)
@@ -114,10 +116,11 @@ func (llc *LLCManager) SetLLCAlloc(pod string, value int) bool {
 	}
 	maskFile := fmt.Sprintf("%s/COS%d/schemata", resctrlPath, llc.AllocInfo[pod].CosId)
 	maskStr := utils.UInt2BitsStr(mask, llc.MaxLLCWay)
-	maskStr = fmt.Sprintf("L3:0=%s;1=%s", maskStr, maskStr)
-	err := exec.Command("echo", maskStr, ">", maskFile)
-	if err != nil {
-		log.Errorf("Write mask(%s) to %s failed! err: %s", maskStr, maskFile, err)
+	maskCMD := fmt.Sprintf("echo \"L3:0=%s;1=%s\" > %s", maskStr, maskStr, maskFile)
+	cmd := exec.Command("/bin/bash", "-c", maskCMD)
+	out, err := cmd.CombinedOutput()
+	if err != nil || len(out) > 0 {
+		log.Errorf("Do %s failed! err: %s, out: %s", maskCMD, err, out)
 		return false
 	} else {
 		llc.AllocInfo[pod].LLCMap = mask
@@ -157,13 +160,12 @@ func (llc *LLCManager) ResetAlloc() bool {
 		log.Errorln("cmd StdoutPipe error:", err)
 		return false
 	}
-	err = cmd.Run()
 
 	result := string(out)
 	if err != nil || !strings.Contains(result, "successful") {
 		log.Errorf("LLC alloc reset fail！%s. err: %s", result, err)
 		return false
 	}
-	log.Infof("Reset llc alloc success! %s", result)
+	log.Infof("Reset llc alloc success!")
 	return true
 }
