@@ -56,6 +56,7 @@ func (llc *LLCManager) AllocLLC(pod string, value string) bool {
 				log.Infof("Set LLC alloc for %s(%d) success!", pod, iValue)
 				return true
 			} else {
+				log.Errorf("Set LLC alloc for %s(%d) failed!", pod, iValue)
 				if llc.AllocInfo[pod].Status == false {
 					llc.ReleaseCos(pod)
 				}
@@ -100,18 +101,20 @@ func (llc *LLCManager) ReleaseCos(pod string) bool {
 		log.Errorf("Write pid(%s) to %s failed! err: %s", pidStr, cosTasks, err)
 	}
 	delete(llc.AllocInfo, pod)
+	log.Infof("Release cos for %s success", pod)
 	return true
 }
 
 func (llc *LLCManager) SetLLCAlloc(pod string, value int) bool {
 	mask := llc.AllocLLCMask(pod, value) //mask == 0, failed
-	//Todo  write cgroup
+	//Todo check write cgroup
 	if mask == 0 {
 		log.Errorf("Can not find suitable LLC, map: 0x%b", llc.LLCMap)
 		return false
 	}
 	maskFile := fmt.Sprintf("%s/COS%d/schemata", resctrlPath, llc.AllocInfo[pod].CosId)
 	maskStr := utils.UInt2BitsStr(mask, llc.MaxLLCWay)
+	maskStr = fmt.Sprintf("L3:0=%s;1=%s", maskStr, maskStr)
 	err := exec.Command("echo", maskStr, ">", maskFile)
 	if err != nil {
 		log.Errorf("Write mask(%s) to %s failed! err: %s", maskStr, maskFile, err)
