@@ -35,6 +35,7 @@ func main() {
 	metrics := collector.NewpqosCollector()
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(metrics)
+	llcManager := NewLLCManager()
 
 	http.Handle(*metricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 
@@ -106,12 +107,14 @@ func main() {
 			} else {
 				w.Write([]byte("failed"))
 			}
-		case "MEM":
+		case "mem":
 			w.Write([]byte("MEM"))
 		case "llc":
-
-			w.Write([]byte("LLC"))
-
+			if llcManager.AllocLLC(pod, value) {
+				w.Write([]byte("succeed"))
+			} else {
+				w.Write([]byte("failed"))
+			}
 		}
 	})
 

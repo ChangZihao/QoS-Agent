@@ -1,12 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"github.com/prometheus/common/log"
 	"math/bits"
+	"node-exporter/collector"
+	"node-exporter/utils"
 	"os/exec"
 	"strconv"
 	"strings"
 )
+
+var resctrlPath = "/sys/fs/resctrl"
 
 type LLCCos struct {
 	CosId  int
@@ -33,7 +38,7 @@ type LLCManager struct {
 func NewLLCManager() LLCManager {
 	// TODO fix get cosCount & llcCount auto from the system
 	manager := LLCManager{16, 20, 0, 0, make(map[string]*LLCCos)}
-	//manager.ResetAlloc()
+	manager.ResetAlloc()
 	return manager
 }
 
@@ -65,7 +70,14 @@ func (llc *LLCManager) AllocCos(pod string) bool {
 		for index := llc.MaxCos - 1; index > 0; index-- {
 			if llc.CosMap&(1<<uint(index)) == 0 {
 				llc.AllocInfo[pod] = &LLCCos{index, false, 0}
-				//TODO add pids to cgroup
+				//TODO Check add pids to cgroup
+				pid, _ := podPids.Load(pod)
+				pidStr := utils.StrList2lines(pid.([]string))
+				cosTasks := fmt.Sprintf("%s/COS%d/tasks", resctrlPath, index)
+				err := exec.Command("echo", "-e", pidStr, ">", cosTasks).Run()
+				if err != nil {
+					log.Errorf("Write pid(%s) to %s failed! err: %s", pidStr, cosTasks, err)
+				}
 				llc.CosMap += 1 << uint(index)
 				return true
 			}
@@ -77,20 +89,16 @@ func (llc *LLCManager) AllocCos(pod string) bool {
 	}
 }
 
-func (llc *LLCManager) TempReleaseLLC(pod string) bool {
-	//just temp drop llc alloc info from global llc alloc info
-	if cos, ok := llc.AllocInfo[pod]; ok {
-		llc.LLCMap = llc.LLCMap - cos.LLCMap
-	} else {
-		log.Errorf("Alloc info not found for %s", pod)
-		return false
-	}
-	return true
-}
-
 func (llc *LLCManager) ReleaseCos(pod string) bool {
 	llc.CosMap -= 1 << llc.AllocInfo[pod].CosId
-	//Todo  write pid to cos0
+	//Todo  write pid to cos0pod
+	pid, _ := podPids.Load(pod)
+	pidStr := utils.StrList2lines(pid.([]string))
+	cosTasks := fmt.Sprintf("%s/tasks", resctrlPath)
+	err := exec.Command("echo", "-e", pidStr, ">", cosTasks).Run()
+	if err != nil {
+		log.Errorf("Write pid(%s) to %s failed! err: %s", pidStr, cosTasks, err)
+	}
 	delete(llc.AllocInfo, pod)
 	return true
 }
@@ -98,15 +106,23 @@ func (llc *LLCManager) ReleaseCos(pod string) bool {
 func (llc *LLCManager) SetLLCAlloc(pod string, value int) bool {
 	mask := llc.AllocLLCMask(pod, value) //mask == 0, failed
 	//Todo  write cgroup
-	ok := true // ,,,,,
-
-	if ok && mask != 0{
+	if mask == 0 {
+		log.Errorf("Can not find suitable LLC, map: 0x%b", llc.LLCMap)
+		return false
+	}
+	maskFile := fmt.Sprintf("%s/COS%d/schemata", resctrlPath, llc.AllocInfo[pod].CosId)
+	maskStr := utils.UInt2BitsStr(mask, llc.MaxLLCWay)
+	err := exec.Command("echo", maskStr, ">", maskFile)
+	if err != nil {
+		log.Errorf("Write mask(%s) to %s failed! err: %s", maskStr, maskFile, err)
+		return false
+	} else {
 		llc.AllocInfo[pod].LLCMap = mask
 		llc.AllocInfo[pod].Status = true
 		llc.LLCMap = llc.SumCosLLCAlloc()
+		collector.LLCAllocCount.Store(pod, value)
 		return true
 	}
-	return false
 }
 
 func (llc *LLCManager) AllocLLCMask(pod string, value int) uint {
@@ -115,7 +131,7 @@ func (llc *LLCManager) AllocLLCMask(pod string, value int) uint {
 		curLLCMap -= llc.AllocInfo[pod].LLCMap
 	}
 	for mask := uint((1 << value) - 1); mask < (1 << llc.MaxLLCWay); mask = mask << 1 {
-		if mask & curLLCMap == 0 {
+		if mask&curLLCMap == 0 {
 			return mask
 		}
 	}
@@ -138,10 +154,11 @@ func (llc *LLCManager) ResetAlloc() bool {
 		log.Errorln("cmd StdoutPipe error:", err)
 		return false
 	}
-	cmd.Run()
+	err = cmd.Run()
+
 	result := string(out)
-	if !strings.Contains(result, "successful") {
-		log.Errorf("LLC alloc reset fail！%s", result)
+	if err != nil || !strings.Contains(result, "successful") {
+		log.Errorf("LLC alloc reset fail！%s. err: %s", result, err)
 		return false
 	}
 	log.Infof("Reset llc alloc success! %s", result)
