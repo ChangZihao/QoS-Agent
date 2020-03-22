@@ -62,7 +62,30 @@ func GetAllContainer(podPath string) []string {
 
 func GetPidByPodName(podName string) []string {
 	podPath := fmt.Sprintf("%s/kubepods-burstable-%s.slice", rootDir, podName)
-	return GetPodPids(podPath)
+	var pids []string
+	fileInfos, err := ioutil.ReadDir(podPath)
+	if err != nil {
+		log.Errorf("Read pod root dir failed!")
+	}
+	for _, file := range fileInfos {
+		if file.IsDir() && strings.Contains(file.Name(), "docker-") {
+			dockerPath := podPath + "/" + file.Name()
+			data, err := ioutil.ReadFile(dockerPath + "/tasks")
+			if err != nil {
+				log.Errorf("Get docker %s pid failed!", dockerPath)
+			}
+			for _, line := range strings.Split(string(data), "\n") {
+				if len(line) > 0 {
+					pids = append(pids, strings.TrimSpace(line))
+				}
+			}
+		}
+	}
+	if len(pids) > 0 {
+		return pids
+	} else {
+		return nil
+	}
 }
 
 func GetPodPids(podPath string) []string {
