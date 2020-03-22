@@ -167,6 +167,12 @@ func (llc *LLCManager) ResetAlloc() bool {
 		log.Errorf("LLC alloc reset fail！%s. err: %s", result, err)
 		return false
 	}
+	for i := 1; i < 16; i++ {
+		cmdStr := fmt.Sprintf("cat /sys/fs/resctrl/COS%d/tasks | xargs -I {} echo {} > /sys/fs/resctrl/tasks", i)
+		cmd = exec.Command("/bin/bash", "-c", cmdStr)
+		cmd.Run()
+	}
+
 	log.Infof("Reset llc alloc success!")
 	return true
 }
