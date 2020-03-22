@@ -5,6 +5,7 @@ import (
 	"github.com/prometheus/common/log"
 	"math/bits"
 	"node-exporter/collector"
+	"node-exporter/podInfo"
 	"node-exporter/utils"
 	"os/exec"
 	"strconv"
@@ -72,8 +73,8 @@ func (llc *LLCManager) AllocCos(pod string) bool {
 			if llc.CosMap&(1<<uint(index)) == 0 {
 				llc.AllocInfo[pod] = &LLCCos{index, false, 0}
 				//TODO Check add pids to cgroup
-				pid, _ := podPids.Load(pod)
-				pidStr := utils.StrList2lines(pid.([]string))
+				pid := podInfo.GetPidByPodName(pod)
+				pidStr := utils.StrList2lines(pid)
 				cosCMD := fmt.Sprintf("echo -e \"%s\" > %s/COS%d/tasks", pidStr, resctrlPath, index)
 				cmd := exec.Command("/bin/bash", "-c", cosCMD)
 				out, err := cmd.CombinedOutput()

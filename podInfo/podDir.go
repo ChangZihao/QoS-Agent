@@ -60,6 +60,11 @@ func GetAllContainer(podPath string) []string {
 	}
 }
 
+func GetPidByPodName(podName string) []string {
+	podPath := fmt.Sprintf("%s/kubepods-burstable-%s.slice", rootDir, podName)
+	return GetPodPids(podPath)
+}
+
 func GetPodPids(podPath string) []string {
 	var pids []string
 	fileInfos, err := ioutil.ReadDir(podPath)
