@@ -52,7 +52,9 @@ func (llc *LLCManager) AllocLLC(pod string, value string) bool {
 		log.Infof("AllocLLC %s failed, wrong llc value %s", pod, value)
 		return false
 	} else {
-		if llc.AllocCos(pod) {
+		if _, ok := llc.AllocInfo[pod]; iValue == 0 && ok {
+			llc.ReleaseCos(pod)
+		} else if llc.AllocCos(pod) {
 			if ok := llc.SetLLCAlloc(pod, iValue); ok == true {
 				log.Infof("Set LLC alloc for %s(%d) success!", pod, iValue)
 				return true
@@ -95,16 +97,15 @@ func (llc *LLCManager) AllocCos(pod string) bool {
 func (llc *LLCManager) ReleaseCos(pod string) bool {
 	llc.CosMap -= 1 << llc.AllocInfo[pod].CosId
 	//Todo  write pid to cos0pod
-	pid, _ := podPids.Load(pod)
-	pidStr := utils.StrList2lines(pid.([]string))
-	cosCMD := fmt.Sprintf("echo -e \"%s\" > %s/tasks", pidStr, resctrlPath)
-	cmd := exec.Command("/bin/bash", "-c", cosCMD)
+	cmdStr := fmt.Sprintf("cat /sys/fs/resctrl/COS%d/tasks | xargs -I {} echo {} > /sys/fs/resctrl/tasks", llc.AllocInfo[pod].CosId)
+	cmd := exec.Command("/bin/bash", "-c", cmdStr)
 	out, err := cmd.CombinedOutput()
 	if err != nil || len(out) > 0 {
-		log.Errorf("Do %s failed! err: %s, our:%s", cosCMD, err, out)
+		log.Errorf("Do %s failed! err: %s, our:%s", cmdStr, err, out)
 	}
 	delete(llc.AllocInfo, pod)
 	log.Infof("Release cos for %s success", pod)
+	llc.LLCMap = llc.SumCosLLCAlloc()
 	return true
 }
 

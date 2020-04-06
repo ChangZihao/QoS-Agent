@@ -98,6 +98,7 @@ func main() {
 		pod := r.Form.Get("pod")
 		resourceType := r.Form.Get("resourceType")
 		value := r.Form.Get("value")
+		log.Infof("Receive resource control: %s : %s : %s", pod, resourceType, value)
 
 		switch resourceType {
 		case "cpu_share":
