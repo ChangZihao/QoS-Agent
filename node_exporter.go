@@ -25,6 +25,8 @@ var (
 	metricsPath      = flag.String("web.telemetry-path", "/metrics", "A path under which to expose metrics.")
 	metricsNamespace = flag.String("metric.namespace", "pqos", "Prometheus metrics namespace, as the prefix of metrics name")
 	masterAddress    = flag.String("master-address", "172.18.13.224:9002", "Qos Master address(ip:port)")
+
+	// 映射pod和pid
 	podPids          = sync.Map{}
 )
 
@@ -37,19 +39,26 @@ func main() {
 	registry.MustRegister(metrics)
 	llcManager := NewLLCManager()
 
+	// node export 数据展示接口
 	http.Handle(*metricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 
+	// pod 监控启动接口
 	http.HandleFunc("/monitor/start", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		pod := r.Form.Get("pod")
 		app := r.Form.Get("app")
 		pod = "pod" + strings.ReplaceAll(pod, "-", "_")
 		if pod != "" {
+			// 判断pod的监控是否已经存在
 			if _, ok := collector.MonitorCMD.Load(pod); !ok {
 				cmd, pids := collector.StarqposMonitor(pod, &podPids)
+				// 保存pod监控的cmd， 便于kill
 				collector.MonitorCMD.Store(pod, cmd)
+				// 保存pod与app映射
 				collector.Pod2app.Store(pod, app)
+				// 保存pod与pid映射
 				podPids.Store(pod, pids)
+				// 初始化pod的llc使用量
 				collector.LLCAllocCount.Store(pod, 0)
 				fmt.Fprintf(w, "Start monitor %s\n", pod)
 				log.Infof("Start monitor app %s, pod  %s\n", app, pod)
@@ -72,6 +81,7 @@ func main() {
 		}
 	})
 
+	// pod 监控停止接口
 	http.HandleFunc("/monitor/stop", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		pod := r.Form.Get("pod")
@@ -79,6 +89,7 @@ func main() {
 		if pod != "" {
 			cmd, ok := collector.MonitorCMD.Load(pod)
 			if ok {
+				// 删除pod的相应信息
 				collector.StopMonitor(cmd.(*exec.Cmd))
 				collector.MonitorCMD.Delete(pod)
 				collector.Pod2app.Delete(pod)
@@ -93,6 +104,7 @@ func main() {
 		}
 	})
 
+	// pod 资源调控接口
 	http.HandleFunc("/control", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		pod := r.Form.Get("pod")

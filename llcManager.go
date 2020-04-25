@@ -47,7 +47,9 @@ func (llc *LLCManager) AllocCount() int {
 	return bits.OnesCount(llc.LLCMap)
 }
 
+// 为pod分配LLC
 func (llc *LLCManager) AllocLLC(pod string, value string) bool {
+	// 判断LLC值是否合法
 	if iValue, err := strconv.Atoi(value); err != nil || iValue < 0 {
 		log.Infof("AllocLLC %s failed, wrong llc value %s", pod, value)
 		return false
@@ -55,6 +57,7 @@ func (llc *LLCManager) AllocLLC(pod string, value string) bool {
 		if _, ok := llc.AllocInfo[pod]; iValue == 0 && ok {
 			llc.ReleaseCos(pod)
 		} else if llc.AllocCos(pod) {
+			// 操作合法，执行分配
 			if ok := llc.SetLLCAlloc(pod, iValue); ok == true {
 				log.Infof("Set LLC alloc for %s(%d) success!", pod, iValue)
 				return true
@@ -69,12 +72,13 @@ func (llc *LLCManager) AllocLLC(pod string, value string) bool {
 	return false
 }
 
+// 为pod分配COS
 func (llc *LLCManager) AllocCos(pod string) bool {
 	if _, ok := llc.AllocInfo[pod]; !ok {
+		// 查询未使用COS
 		for index := llc.MaxCos - 1; index > 0; index-- {
 			if llc.CosMap&(1<<uint(index)) == 0 {
 				llc.AllocInfo[pod] = &LLCCos{index, false, 0}
-				//TODO Check add pids to cgroup
 				pid := podInfo.GetPidByPodName(pod)
 				pidStr := utils.StrList2lines(pid)
 				cosCMD := fmt.Sprintf("echo -e \"%s\" > %s/COS%d/tasks", pidStr, resctrlPath, index)
@@ -94,9 +98,10 @@ func (llc *LLCManager) AllocCos(pod string) bool {
 	}
 }
 
+// 释放COS
 func (llc *LLCManager) ReleaseCos(pod string) bool {
 	llc.CosMap -= 1 << llc.AllocInfo[pod].CosId
-	//Todo  write pid to cos0pod
+	// write pid to cos0
 	cmdStr := fmt.Sprintf("cat /sys/fs/resctrl/COS%d/tasks | xargs -I {} echo {} > /sys/fs/resctrl/tasks", llc.AllocInfo[pod].CosId)
 	cmd := exec.Command("/bin/bash", "-c", cmdStr)
 	out, err := cmd.CombinedOutput()
@@ -109,13 +114,15 @@ func (llc *LLCManager) ReleaseCos(pod string) bool {
 	return true
 }
 
+// 指定LLC分配
 func (llc *LLCManager) SetLLCAlloc(pod string, value int) bool {
+	// 获取llc mask
 	mask := llc.AllocLLCMask(pod, value) //mask == 0, failed
-	//Todo check write cgroup
 	if mask == 0 {
 		log.Errorf("Can not find suitable LLC, map: 0x%b", llc.LLCMap)
 		return false
 	}
+	// 生成llc分配命令
 	maskFile := fmt.Sprintf("%s/COS%d/schemata", resctrlPath, llc.AllocInfo[pod].CosId)
 	maskStr := utils.UInt2BitsStr(mask, llc.MaxLLCWay)
 	maskCMD := fmt.Sprintf("echo \"L3:0=%s;1=%s\" > %s", maskStr, maskStr, maskFile)
@@ -133,6 +140,7 @@ func (llc *LLCManager) SetLLCAlloc(pod string, value int) bool {
 	}
 }
 
+// 根据所需llc值和已分配llc情况，计算新COS的LLC mask
 func (llc *LLCManager) AllocLLCMask(pod string, value int) uint {
 	curLLCMap := llc.LLCMap
 	if llc.AllocInfo[pod].Status == true {
@@ -146,6 +154,7 @@ func (llc *LLCManager) AllocLLCMask(pod string, value int) uint {
 	return 0
 }
 
+// 统计目前已经分配的LLC mask
 func (llc *LLCManager) SumCosLLCAlloc() uint {
 	total := uint(0)
 	for _, v := range llc.AllocInfo {
@@ -154,6 +163,7 @@ func (llc *LLCManager) SumCosLLCAlloc() uint {
 	return total
 }
 
+// 重置全部llc分配
 func (llc *LLCManager) ResetAlloc() bool {
 	cmd := exec.Command("pqos", "-I", "-R")
 
